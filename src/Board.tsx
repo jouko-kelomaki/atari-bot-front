@@ -86,10 +86,47 @@ class Board extends React.Component<PropType, StateType> {
         ctx.stroke()
     }
 
+    drawGrid(gridSize: number){
+        if(this.contextRef == null) return
+        let offset: number = 100;
+        for(let row=0; row < gridSize; row++) {
+            this.drawLineUtil(
+                {
+                    x: offset,
+                    y: offset+(row*(1000-2*offset)/(gridSize-1))
+                },
+                {
+                    x: 1000-offset,
+                    y: offset+(row*(1000-2*offset)/(gridSize-1))
+                }
+            )
+        }
+        
+        for(let col=0; col < gridSize; col++) {
+            this.drawLineUtil(
+                {
+                    y: offset,
+                    x: offset+(col*(1000-2*offset)/(gridSize-1))
+                },
+                {
+                    y: 1000-offset,
+                    x: offset+(col*(1000-2*offset)/(gridSize-1))
+                }
+            )
+        }
+
+
+    }
+
+    //drawStones(){
+    //
+    //}
+
     drawBoardUtil(){
         if(this.contextRef == null) return
-        this.contextRef.drawImage(this.state.images.bgImage, 0, 0)
+        this.contextRef.drawImage(this.state.images.bgImage, 0, 0)  
 
+        this.drawGrid(9)
     }
   
     componentDidMount() {
