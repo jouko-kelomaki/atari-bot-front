@@ -3,6 +3,7 @@ import blackStoneFile from './images/black.png'
 import whiteStoneFile from './images/white.png'
 import bgImage from './images/shinkaya.jpg'
 import useImage from 'use-image'
+import axios from 'axios'
 
 enum Stone {
     empty,
@@ -67,6 +68,7 @@ const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRen
     }
 }
 
+const sendRequest = (board) => {}
 
 
 const Board = (props: {boardsize: number}) => {
