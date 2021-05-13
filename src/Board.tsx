@@ -111,6 +111,9 @@ const Board = (props: {boardsize: number}) => {
                             setCurrentTurn(currentTurn === Stone.black ? Stone.white : Stone.black)
                             return newBoardState
                         })
+
+                        // send request
+                        console.log(JSON.stringify(boardState,null,2));
                     }
                     
                 }
