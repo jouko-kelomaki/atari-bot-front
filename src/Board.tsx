@@ -1,19 +1,13 @@
-import React from 'react'
-import blackStone from './images/black.png'
-import whiteStone from './images/white.png'
+import React, { FunctionComponent, useRef, useState } from 'react'
+import blackStoneFile from './images/black.png'
+import whiteStoneFile from './images/white.png'
 import bgImage from './images/shinkaya.jpg'
+import useImage from 'use-image'
 
-type StateType = {
-    images: {
-        bgImage: HTMLImageElement
-        blackStone: HTMLImageElement
-        whiteStone: HTMLImageElement
-    }
-    dummyString: string
-}
-
-type PropType = {
-    propstr: string
+enum Stone {
+    empty,
+    black,
+    white
 }
 
 type Point = {
@@ -21,132 +15,120 @@ type Point = {
     y: number
 }
 
-const loadableImages = ["bgImage", "blackStone", "whiteStone"] as const
+const stoneOffset = 47 // should be dependent on size
+const intersectionOffset = 100
 
-class Board extends React.Component<PropType, StateType> {
-    canvasRef: React.RefObject<HTMLCanvasElement>
-    contextRef: CanvasRenderingContext2D | null
-    imageLoaded: { bgImage: boolean; blackStone: boolean; whiteStone: boolean }
-    IsComponentMounted: boolean
+const countIntersectionCoordinates = (x: number, y: number, boardSize: number) => {
+    return {
+        x: intersectionOffset + (x * (1000-2*intersectionOffset) / (boardSize - 1)),
+        y: intersectionOffset + (y * (1000-2*intersectionOffset) / (boardSize - 1))
+    }
+}
 
-    constructor(props: PropType) {
-        super(props)
-        this.canvasRef = React.createRef()
-        this.contextRef = null
-        this.IsComponentMounted = false
+const drawLine = (start: Point, end: Point, ctx: CanvasRenderingContext2D) => {
+    if(ctx == null) {
+        return
+    }
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    ctx.lineTo(end.x, end.y)
+    ctx.stroke()
+}
 
-        this.imageLoaded = {
-            bgImage: false,
-            blackStone: false,
-            whiteStone: false
-        }
-        
-        this.state = {
-            images: this.createImageElements(),
-            dummyString: "a",
-        }
+const drawGrid = (context: CanvasRenderingContext2D, boardSize: number) => {
+    const offset = intersectionOffset;
+
+    for(let row = 0; row < boardSize; row++) {
+        drawLine(countIntersectionCoordinates(0, row, boardSize), countIntersectionCoordinates(boardSize-1, row, boardSize), context)
     }
 
-    createImageElements(): {[I in typeof loadableImages[number]]: HTMLImageElement} {
-        let loadHelper = (imageName: typeof loadableImages[number]) => () => { 
-            this.imageLoaded = {...this.imageLoaded, [imageName]: true}
-            this.IsComponentMounted && this.forceUpdate()
+    for(let col = 0; col < boardSize; col++) {
+        drawLine(countIntersectionCoordinates(col, 0, boardSize), countIntersectionCoordinates(col, boardSize-1, boardSize), context)
+    }
+}
 
-            if(this.IsComponentMounted && this.imageLoaded.bgImage && this.imageLoaded.blackStone && this.imageLoaded.whiteStone) {
-                this.drawBoardUtil()
+const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRenderingContext2D, blackImage: HTMLImageElement, whiteImage: HTMLImageElement) => {
+    const stoneSize = 94
+
+    for(let row = 0; row < boardSize; row++) {
+        for(let col = 0; col < boardSize; col++){
+            switch(boardState[row][col]){
+                case Stone.black:
+                    context.drawImage(blackImage, countIntersectionCoordinates(row, col, boardSize).x - stoneOffset, 
+                        countIntersectionCoordinates(row, col, boardSize).y - stoneOffset, stoneSize, stoneSize)
+                    break;
+                case Stone.white:
+                    context.drawImage(whiteImage, countIntersectionCoordinates(row, col, boardSize).x - stoneOffset, 
+                        countIntersectionCoordinates(row, col, boardSize).y - stoneOffset, stoneSize, stoneSize)
+                    break;
+
             }
         }
-
-        let bgImg = new Image()
-        bgImg.src = bgImage
-        bgImg.onload = loadHelper("bgImage")
-        
-        let blackImg = new Image()
-        blackImg.src = blackStone
-        blackImg.onload = loadHelper("blackStone")
-
-        let whiteImg = new Image()
-        whiteImg.src = whiteStone
-        whiteImg.onload = loadHelper("whiteStone")
-        return {
-            bgImage: bgImg,
-            blackStone: blackImg,
-            whiteStone: whiteImg
-        }
     }
-
-    drawLineUtil(start: Point, end: Point){
-        let ctx = this.contextRef
-        if(ctx == null) {
-            return
-        }
-        ctx.beginPath()
-        ctx.moveTo(start.x, start.y)
-        ctx.lineTo(end.x, end.y)
-        ctx.stroke()
-    }
-
-    drawGrid(gridSize: number){
-        if(this.contextRef == null) return
-        let offset: number = 100;
-        for(let row=0; row < gridSize; row++) {
-            this.drawLineUtil(
-                {
-                    x: offset,
-                    y: offset+(row*(1000-2*offset)/(gridSize-1))
-                },
-                {
-                    x: 1000-offset,
-                    y: offset+(row*(1000-2*offset)/(gridSize-1))
-                }
-            )
-        }
-        
-        for(let col=0; col < gridSize; col++) {
-            this.drawLineUtil(
-                {
-                    y: offset,
-                    x: offset+(col*(1000-2*offset)/(gridSize-1))
-                },
-                {
-                    y: 1000-offset,
-                    x: offset+(col*(1000-2*offset)/(gridSize-1))
-                }
-            )
-        }
-
-
-    }
-
-    //drawStones(){
-    //
-    //}
-
-    drawBoardUtil(){
-        if(this.contextRef == null) return
-        this.contextRef.drawImage(this.state.images.bgImage, 0, 0)  
-
-        this.drawGrid(9)
-    }
-  
-    componentDidMount() {
-        this.IsComponentMounted = true
-        const canvas = this.canvasRef.current
-        if (canvas === null) return
-        this.contextRef = canvas.getContext('2d') 
-    }
-
-    render() {
-        return (<canvas ref={this.canvasRef} width="1000" height="1000" {...this.props}/>)
-    } 
 }
 
-const boardIntersectionCoordinates = (boardWidthAndHeight: number, gridPadding: number, boardSize: number) => {
-    const interval = (boardWidthAndHeight - 2 * gridPadding) / (boardSize - 1)
-    
 
+
+const Board = (props: {boardsize: number}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+
+    const [bgImg] = useImage(bgImage)
+    const [blackStone] = useImage(blackStoneFile)
+    const [whiteStone] = useImage(whiteStoneFile)
+
+    let initialBoardState = Array(props.boardsize)
+    for(let i = 0; i < props.boardsize; i++) {
+        initialBoardState[i] = Array(props.boardsize).fill(Stone.empty)
+    }
+
+    const [boardState, setBoardState] = useState(initialBoardState)
+    const [currentTurn, setCurrentTurn] = useState(Stone.black)
+
+    React.useEffect(() => {
+        const canvas = canvasRef.current
+        if(canvas == null) return
+        const context = canvas.getContext('2d')
+        if(context == null) return
+
+        bgImg && context.drawImage(bgImg, 0, 0)
+        drawGrid(context, 9)
+        blackStone && whiteStone && drawStones(boardState, props.boardsize, context, blackStone, whiteStone)
+    })
+
+    const clickHandler = (x: number, y: number) => {
+        if(!canvasRef.current) return
+        let canvasX = x - canvasRef.current.getBoundingClientRect().left
+        let canvasY = y - canvasRef.current.getBoundingClientRect().top
+        for(let row = 0; row < props.boardsize; row++) {
+            for(let col = 0; col < props.boardsize; col++) {
+                const intersection = countIntersectionCoordinates(row, col, props.boardsize)
+                if(Math.sqrt(Math.pow(canvasX - intersection.x, 2) + Math.pow(canvasY - intersection.y, 2)) < stoneOffset) {
+                    
+                    if(boardState[row][col] === Stone.empty) {
+                        setBoardState(prevBoardState => {
+                            let newBoardState = Array.from(prevBoardState)
+                            newBoardState[row][col] = currentTurn
+                            setCurrentTurn(currentTurn === Stone.black ? Stone.white : Stone.black)
+                            return newBoardState
+                        })
+                    }
+                    
+                }
+            }
+        }
+    }
+
+    return (
+        <canvas
+            ref={canvasRef}
+            width="1000" 
+            height="1000"
+            onClick={clickEvent=> 
+                clickHandler(clickEvent.clientX, clickEvent.clientY)
+            }
+        />
+    )
 }
-
 
 
 export default Board
