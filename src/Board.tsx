@@ -129,7 +129,10 @@ const Board = (props: {boardsize: number}) => {
                         setBoardState(prevBoardState => {
                             let newBoardState = Array.from(prevBoardState)
                             newBoardState[row][col] = currentTurn
-                            setCurrentTurn(currentTurn === Stone.black ? Stone.white : Stone.black)
+
+                            //currently off because the server plays the other color
+                            //setCurrentTurn(currentTurn === Stone.black ? Stone.white : Stone.black)
+
                             return newBoardState
                         })
 
