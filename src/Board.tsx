@@ -3,7 +3,7 @@ import blackStoneFile from './images/black.png'
 import whiteStoneFile from './images/white.png'
 import bgImage from './images/shinkaya.jpg'
 import useImage from 'use-image'
-import axios from 'axios'
+import axios, { AxiosResponse } from 'axios'
 
 enum Stone {
     empty,
@@ -68,8 +68,27 @@ const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRen
     }
 }
 
-const sendRequest = (board) => {}
+const sendRequest = async (board: BoardData) => {
 
+    try {
+        let newBoard: BoardData = (await axios.post("http://127.0.0.1:5000/test", {
+            test: "fromFront",
+            board: board
+        }, {
+            headers: {
+                "content-type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            }
+        })).data.board
+        console.log("got board?")
+        return newBoard
+    } catch (err) {
+        console.log("failed to fetch board")
+        return board
+    }
+}
+
+type BoardData = Array<Array<number>>
 
 const Board = (props: {boardsize: number}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -78,7 +97,7 @@ const Board = (props: {boardsize: number}) => {
     const [blackStone] = useImage(blackStoneFile)
     const [whiteStone] = useImage(whiteStoneFile)
 
-    let initialBoardState = Array(props.boardsize)
+    let initialBoardState: BoardData = Array(props.boardsize)
     for(let i = 0; i < props.boardsize; i++) {
         initialBoardState[i] = Array(props.boardsize).fill(Stone.empty)
     }
@@ -114,8 +133,7 @@ const Board = (props: {boardsize: number}) => {
                             return newBoardState
                         })
 
-                        // send request
-                        console.log(JSON.stringify(boardState,null,2));
+                        sendRequest(boardState).then(bd => setBoardState(bd))
                     }
                     
                 }
