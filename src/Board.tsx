@@ -73,7 +73,8 @@ const sendRequest = async (board: BoardData) => {
     try {
         let newBoard: BoardData = (await axios.post("http://127.0.0.1:5000/test", {
             test: "fromFront",
-            board: board
+            board: board,
+            opponent: "random"
         }, {
             headers: {
                 "content-type": "application/json",
