@@ -16,13 +16,15 @@ type Point = {
     y: number
 }
 
-const stoneOffset = 47 // should be dependent on size
-const intersectionOffset = 100
+//const stoneOffset = 47 // should be dependent on size
+//const intersectionOffset = 100
+//const boardElementSize = 1000
+//const stoneSize = 95
 
-const countIntersectionCoordinates = (x: number, y: number, boardSize: number) => {
+const countIntersectionCoordinates = (x: number, y: number, boardSize: number, boardElementSize: number, intersectionOffset: number) => {
     return {
-        x: intersectionOffset + (x * (1000-2*intersectionOffset) / (boardSize - 1)),
-        y: intersectionOffset + (y * (1000-2*intersectionOffset) / (boardSize - 1))
+        x: intersectionOffset + (x * (boardElementSize-2*intersectionOffset) / (boardSize - 1)),
+        y: intersectionOffset + (y * (boardElementSize-2*intersectionOffset) / (boardSize - 1))
     }
 }
 
@@ -36,31 +38,36 @@ const drawLine = (start: Point, end: Point, ctx: CanvasRenderingContext2D) => {
     ctx.stroke()
 }
 
-const drawGrid = (context: CanvasRenderingContext2D, boardSize: number) => {
+const drawGrid = (context: CanvasRenderingContext2D, boardSize: number, boardElementSize: number, intersectionOffset: number) => {
     const offset = intersectionOffset;
 
     for(let row = 0; row < boardSize; row++) {
-        drawLine(countIntersectionCoordinates(0, row, boardSize), countIntersectionCoordinates(boardSize-1, row, boardSize), context)
+        drawLine(countIntersectionCoordinates(0, row, boardSize, boardElementSize, intersectionOffset), 
+        countIntersectionCoordinates(boardSize-1, row, boardSize, boardElementSize, intersectionOffset), context)
     }
 
     for(let col = 0; col < boardSize; col++) {
-        drawLine(countIntersectionCoordinates(col, 0, boardSize), countIntersectionCoordinates(col, boardSize-1, boardSize), context)
+        drawLine(countIntersectionCoordinates(col, 0, boardSize, boardElementSize, intersectionOffset),
+        countIntersectionCoordinates(col, boardSize-1, boardSize, boardElementSize, intersectionOffset), context)
     }
 }
 
-const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRenderingContext2D, blackImage: HTMLImageElement, whiteImage: HTMLImageElement) => {
-    const stoneSize = 94
-
+const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRenderingContext2D, blackImage: HTMLImageElement,
+     whiteImage: HTMLImageElement, stoneOffset: number, stoneSize: number, boardElementSize: number, intersectionOffset: number) => {
     for(let row = 0; row < boardSize; row++) {
         for(let col = 0; col < boardSize; col++){
             switch(boardState[row][col]){
                 case Stone.black:
-                    context.drawImage(blackImage, countIntersectionCoordinates(row, col, boardSize).x - stoneOffset, 
-                        countIntersectionCoordinates(row, col, boardSize).y - stoneOffset, stoneSize, stoneSize)
+                    context.drawImage(blackImage,
+                        countIntersectionCoordinates(row, col, boardSize, boardElementSize, intersectionOffset).x - stoneOffset, 
+                        countIntersectionCoordinates(row, col, boardSize, boardElementSize, intersectionOffset).y - stoneOffset, 
+                        stoneSize, stoneSize)
                     break;
                 case Stone.white:
-                    context.drawImage(whiteImage, countIntersectionCoordinates(row, col, boardSize).x - stoneOffset, 
-                        countIntersectionCoordinates(row, col, boardSize).y - stoneOffset, stoneSize, stoneSize)
+                    context.drawImage(whiteImage, 
+                        countIntersectionCoordinates(row, col, boardSize, boardElementSize, intersectionOffset).x - stoneOffset, 
+                        countIntersectionCoordinates(row, col, boardSize, boardElementSize, intersectionOffset).y - stoneOffset, 
+                        stoneSize, stoneSize)
                     break;
 
             }
@@ -90,6 +97,21 @@ const sendRequest = async (board: BoardData) => {
     }
 }
 
+const getWindowDimensions = () => {
+    const { innerWidth: width, innerHeight: height } = window
+    return {
+        width,
+        height
+    }
+}
+
+const elementConstantsFromBoardElementSize = (boardElementSize: number) => ({
+    boardElementSize: boardElementSize,
+    intersectionOffset: 0.1 * boardElementSize,
+    stoneOffset: 0.05 * boardElementSize - 3,
+    stoneSize: 0.1 * boardElementSize - 6
+})
+
 type BoardData = Array<Array<number>>
 
 const Board = (props: {boardsize: number}) => {
@@ -107,6 +129,29 @@ const Board = (props: {boardsize: number}) => {
     const [boardState, setBoardState] = useState(initialBoardState)
     const [currentTurn, setCurrentTurn] = useState(Stone.black)
 
+    const initialElementValues = elementConstantsFromBoardElementSize(getWindowDimensions().height) // assumes a landscape screen
+    const [boardElementSize, setBoardElementSize] = useState(initialElementValues.boardElementSize)
+    const [stoneOffset, setStoneOffset] = useState(initialElementValues.stoneOffset)
+    const [intersectionOffset, setIntersectionOffset] = useState(initialElementValues.intersectionOffset)
+    const [stoneSize, setStoneSize] = useState(initialElementValues.stoneSize)
+
+
+    React.useEffect(() => {
+        const handleResize = () => {
+            // assume a standard-shaped landscape screen
+            const nextBoardElementSize = getWindowDimensions().height
+            const nextElementValues = elementConstantsFromBoardElementSize(nextBoardElementSize)
+            setBoardElementSize(nextElementValues.boardElementSize)
+            setIntersectionOffset(nextElementValues.intersectionOffset)
+            setStoneOffset(nextElementValues.stoneOffset)
+            setStoneSize(nextElementValues.stoneSize)
+        }
+        
+        // not entirely sure what these do
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)    
+    })
+
     React.useEffect(() => {
         const canvas = canvasRef.current
         if(canvas == null) return
@@ -114,8 +159,9 @@ const Board = (props: {boardsize: number}) => {
         if(context == null) return
 
         bgImg && context.drawImage(bgImg, 0, 0)
-        drawGrid(context, 9)
-        blackStone && whiteStone && drawStones(boardState, props.boardsize, context, blackStone, whiteStone)
+        drawGrid(context, 9, boardElementSize, intersectionOffset)
+        blackStone && whiteStone && drawStones(boardState, props.boardsize, context, blackStone, whiteStone, stoneOffset, stoneSize, 
+            boardElementSize, intersectionOffset)
     })
 
     const clickHandler = (x: number, y: number) => {
@@ -124,7 +170,7 @@ const Board = (props: {boardsize: number}) => {
         let canvasY = y - canvasRef.current.getBoundingClientRect().top
         for(let row = 0; row < props.boardsize; row++) {
             for(let col = 0; col < props.boardsize; col++) {
-                const intersection = countIntersectionCoordinates(row, col, props.boardsize)
+                const intersection = countIntersectionCoordinates(row, col, props.boardsize, boardElementSize, intersectionOffset)
                 if(Math.sqrt(Math.pow(canvasX - intersection.x, 2) + Math.pow(canvasY - intersection.y, 2)) < stoneOffset) {
                     
                     if(boardState[row][col] === Stone.empty) {
@@ -147,14 +193,17 @@ const Board = (props: {boardsize: number}) => {
     }
 
     return (
-        <canvas
+        <div className="boardall">
+            <canvas
             ref={canvasRef}
-            width="1000" 
-            height="1000"
+            width={boardElementSize} 
+            height={boardElementSize}
             onClick={clickEvent=> 
                 clickHandler(clickEvent.clientX, clickEvent.clientY)
             }
-        />
+            />
+            <p>aerw</p>
+        </div>
     )
 }
 
