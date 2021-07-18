@@ -75,14 +75,24 @@ const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRen
     }
 }
 
+const sendAIfetchRequest = async () => {
+    try {
+        let response = (await axios.get("http://127.0.0.1:5000/availableai"))
+        return response.data.availableAi
+    } catch(e) {
+        console.log("failed to fetch AI")
+        return []
+    }
+}
+
 // needs proper typing for the response
-const sendRequest = async (board: BoardData) => {
+const sendRequest = async (board: BoardData, aiOpponent: string) => {
 
     try {
         let response = (await axios.post("http://127.0.0.1:5000/test", {
             test: "fromFront",
             board: board,
-            opponent: "eval1",
+            opponent: aiOpponent,
             turnColor: 2
         }, {
             headers: {
@@ -147,6 +157,10 @@ const Board = (props: {defaultboardsize: number}) => {
 
     const [playAllowed, setPlayAllowed] = useState(false)
     const [boardSizeRadioValue, setBoardSizeRadioValue] = useState(9)
+    const [availableAi, setAvailableAi] = useState([])
+    const [aiRadioValue, setAiRadioValue] = useState("")
+
+    React.useEffect(() => {sendAIfetchRequest().then(aiArray => setAvailableAi(aiArray))}, [])
 
     React.useEffect(() => {
         const handleResize = () => {
@@ -195,8 +209,8 @@ const Board = (props: {defaultboardsize: number}) => {
 
                             return newBoardState
                         })
-
-                        sendRequest(boardState).then(bd => setBoardState(bd))
+                        
+                        aiRadioValue && sendRequest(boardState, aiRadioValue).then(bd => setBoardState(bd))
                     }
                     
                 }
@@ -222,11 +236,19 @@ const Board = (props: {defaultboardsize: number}) => {
                         <FormControlLabel value="5" control={<Radio/>} label="5x5" />
                     </RadioGroup>
                 </FormControl>
+                <FormControl component="fieldset">
+                    <RadioGroup row value={`${aiRadioValue}`} onChange={e => {setAiRadioValue(e.target.value)}}>
+                        {availableAi.map(aiName => 
+                            <FormControlLabel value={aiName} control={<Radio/>} label={aiName}/>
+                        )}
+                    </RadioGroup>
+                </FormControl>
                 <Button 
                     onClick={() => {
                         setPlayAllowed(true)
                         setBoardSize(boardSizeRadioValue)
                         setBoardState(initialBoardState)
+                        console.log(availableAi)
                     }} variant="contained">Start a new game
                 </Button>
             </div>
