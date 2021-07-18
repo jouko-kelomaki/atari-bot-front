@@ -5,7 +5,7 @@ import Board from './Board'
 const App = () => {
   return (
     <div className="App">
-      <Board boardsize={9}/>
+      <Board defaultboardsize={9}/>
     </div>
   );
 }

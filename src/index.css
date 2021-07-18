@@ -8,7 +8,7 @@ body {
 }
 
 .boardall {
-  column-count: 2;
+  display: flex
 }
 
 code {

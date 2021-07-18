@@ -4,6 +4,8 @@ import whiteStoneFile from './images/white.png'
 import bgImage from './images/shinkaya.jpg'
 import useImage from 'use-image'
 import axios, { AxiosResponse } from 'axios'
+import Button from '@material-ui/core/Button'
+import { RadioGroup, FormControl, FormControlLabel, Radio } from '@material-ui/core'
 
 enum Stone {
     empty,
@@ -39,8 +41,6 @@ const drawLine = (start: Point, end: Point, ctx: CanvasRenderingContext2D) => {
 }
 
 const drawGrid = (context: CanvasRenderingContext2D, boardSize: number, boardElementSize: number, intersectionOffset: number) => {
-    const offset = intersectionOffset;
-
     for(let row = 0; row < boardSize; row++) {
         drawLine(countIntersectionCoordinates(0, row, boardSize, boardElementSize, intersectionOffset), 
         countIntersectionCoordinates(boardSize-1, row, boardSize, boardElementSize, intersectionOffset), context)
@@ -117,21 +117,23 @@ const elementConstantsFromBoardElementSize = (boardElementSize: number) => ({
     boardElementSize: boardElementSize,
     intersectionOffset: 0.1 * boardElementSize,
     stoneOffset: 0.05 * boardElementSize - 3,
-    stoneSize: 0.1 * boardElementSize - 6
+    stoneSize: 0.1 * boardElementSize - 6 // seems to need fixing according to boardSize
 })
 
 type BoardData = Array<Array<number>>
 
-const Board = (props: {boardsize: number}) => {
+const Board = (props: {defaultboardsize: number}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
     const [bgImg] = useImage(bgImage)
     const [blackStone] = useImage(blackStoneFile)
     const [whiteStone] = useImage(whiteStoneFile)
 
-    let initialBoardState: BoardData = Array(props.boardsize)
-    for(let i = 0; i < props.boardsize; i++) {
-        initialBoardState[i] = Array(props.boardsize).fill(Stone.empty)
+    const [boardSize, setBoardSize] = useState(props.defaultboardsize)
+
+    let initialBoardState: BoardData = Array(boardSize)
+    for(let i = 0; i < boardSize; i++) {
+        initialBoardState[i] = Array(boardSize).fill(Stone.empty)
     }
 
     const [boardState, setBoardState] = useState(initialBoardState)
@@ -144,6 +146,7 @@ const Board = (props: {boardsize: number}) => {
     const [stoneSize, setStoneSize] = useState(initialElementValues.stoneSize)
 
     const [playAllowed, setPlayAllowed] = useState(false)
+    const [boardSizeRadioValue, setBoardSizeRadioValue] = useState(9)
 
     React.useEffect(() => {
         const handleResize = () => {
@@ -168,8 +171,8 @@ const Board = (props: {boardsize: number}) => {
         if(context == null) return
 
         bgImg && context.drawImage(bgImg, 0, 0)
-        drawGrid(context, 9, boardElementSize, intersectionOffset)
-        blackStone && whiteStone && drawStones(boardState, props.boardsize, context, blackStone, whiteStone, stoneOffset, stoneSize, 
+        drawGrid(context, boardSize, boardElementSize, intersectionOffset)
+        blackStone && whiteStone && drawStones(boardState, boardSize, context, blackStone, whiteStone, stoneOffset, stoneSize, 
             boardElementSize, intersectionOffset)
     })
 
@@ -177,9 +180,9 @@ const Board = (props: {boardsize: number}) => {
         if(!canvasRef.current) return
         let canvasX = x - canvasRef.current.getBoundingClientRect().left
         let canvasY = y - canvasRef.current.getBoundingClientRect().top
-        for(let row = 0; row < props.boardsize; row++) {
-            for(let col = 0; col < props.boardsize; col++) {
-                const intersection = countIntersectionCoordinates(row, col, props.boardsize, boardElementSize, intersectionOffset)
+        for(let row = 0; row < boardSize; row++) {
+            for(let col = 0; col < boardSize; col++) {
+                const intersection = countIntersectionCoordinates(row, col, boardSize, boardElementSize, intersectionOffset)
                 if(Math.sqrt(Math.pow(canvasX - intersection.x, 2) + Math.pow(canvasY - intersection.y, 2)) < stoneOffset) {
                     
                     if(boardState[row][col] === Stone.empty && playAllowed) {
@@ -211,7 +214,22 @@ const Board = (props: {boardsize: number}) => {
                 clickHandler(clickEvent.clientX, clickEvent.clientY)
             }
             />
-            <p>aerw</p>
+            <div className="controls">
+                <FormControl component="fieldset">
+                    <RadioGroup row value={`${boardSizeRadioValue}`} onChange={e => {setBoardSizeRadioValue(parseInt(e.target.value))}}>
+                        <FormControlLabel value="9" control={<Radio/>} label="9x9" />
+                        <FormControlLabel value="7" control={<Radio/>} label="7x7" />
+                        <FormControlLabel value="5" control={<Radio/>} label="5x5" />
+                    </RadioGroup>
+                </FormControl>
+                <Button 
+                    onClick={() => {
+                        setPlayAllowed(true)
+                        setBoardSize(boardSizeRadioValue)
+                        setBoardState(initialBoardState)
+                    }} variant="contained">Start a new game
+                </Button>
+            </div>
         </div>
     )
 }
