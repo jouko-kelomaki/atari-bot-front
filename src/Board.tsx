@@ -75,10 +75,11 @@ const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRen
     }
 }
 
+// needs proper typing for the response
 const sendRequest = async (board: BoardData) => {
 
     try {
-        let newBoard: BoardData = (await axios.post("http://127.0.0.1:5000/test", {
+        let response = (await axios.post("http://127.0.0.1:5000/test", {
             test: "fromFront",
             board: board,
             opponent: "eval1",
@@ -88,7 +89,14 @@ const sendRequest = async (board: BoardData) => {
                 "content-type": "application/json",
                 "Access-Control-Allow-Origin": "*"
             }
-        })).data.board
+        }))
+        // In the wrong place, needs some refactoring
+        if(response.data.winner && response.data.winner != 0) {
+            alert(`${response.data.winner == 2 ? "White" : "Black"} is victorious!`)
+        }
+
+
+        let newBoard: BoardData = response.data.board
         console.log("got board?")
         return newBoard
     } catch (err) {
