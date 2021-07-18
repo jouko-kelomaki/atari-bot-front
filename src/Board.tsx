@@ -228,7 +228,7 @@ const Board = (props: {defaultboardsize: number}) => {
                 clickHandler(clickEvent.clientX, clickEvent.clientY)
             }
             />
-            <div className="controls">
+            <div className="new-game-controls">
                 <FormControl component="fieldset">
                     <RadioGroup row value={`${boardSizeRadioValue}`} onChange={e => {setBoardSizeRadioValue(parseInt(e.target.value))}}>
                         <FormControlLabel value="9" control={<Radio/>} label="9x9" />

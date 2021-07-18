@@ -11,9 +11,11 @@ body {
   display: flex
 }
 
-.controls {
+.new-game-controls {
   display: flex;
-  flex-direction: column
+  flex-direction: column; 
+
+  padding: 60px;
 }
 
 code {
