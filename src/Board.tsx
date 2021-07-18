@@ -143,6 +143,7 @@ const Board = (props: {boardsize: number}) => {
     const [intersectionOffset, setIntersectionOffset] = useState(initialElementValues.intersectionOffset)
     const [stoneSize, setStoneSize] = useState(initialElementValues.stoneSize)
 
+    const [playAllowed, setPlayAllowed] = useState(false)
 
     React.useEffect(() => {
         const handleResize = () => {
@@ -181,7 +182,7 @@ const Board = (props: {boardsize: number}) => {
                 const intersection = countIntersectionCoordinates(row, col, props.boardsize, boardElementSize, intersectionOffset)
                 if(Math.sqrt(Math.pow(canvasX - intersection.x, 2) + Math.pow(canvasY - intersection.y, 2)) < stoneOffset) {
                     
-                    if(boardState[row][col] === Stone.empty) {
+                    if(boardState[row][col] === Stone.empty && playAllowed) {
                         setBoardState(prevBoardState => {
                             let newBoardState = Array.from(prevBoardState)
                             newBoardState[row][col] = currentTurn
