@@ -18,10 +18,13 @@ type Point = {
     y: number
 }
 
-//const stoneOffset = 47 // should be dependent on size
-//const intersectionOffset = 100
-//const boardElementSize = 1000
-//const stoneSize = 95
+const generateStateFromRecord = (record: Record, boardSize: number) => {
+    let board = createInitialBoardState(boardSize)
+    for(let i = 0; i < record.length; i++) {
+        board[record[i][0]][record[i][1]] = (i % 2) + 1
+    }
+    return board
+}
 
 const countIntersectionCoordinates = (x: number, y: number, boardSize: number, boardElementSize: number, intersectionOffset: number) => {
     return {
@@ -53,7 +56,7 @@ const drawGrid = (context: CanvasRenderingContext2D, boardSize: number, boardEle
 }
 
 const drawStones = (boardState: Stone[][], boardSize: number, context: CanvasRenderingContext2D, blackImage: HTMLImageElement,
-     whiteImage: HTMLImageElement, stoneOffset: number, stoneSize: number, boardElementSize: number, intersectionOffset: number) => {
+        whiteImage: HTMLImageElement, stoneOffset: number, stoneSize: number, boardElementSize: number, intersectionOffset: number) => {
     for(let row = 0; row < boardSize; row++) {
         for(let col = 0; col < boardSize; col++){
             switch(boardState[row][col]){
@@ -86,12 +89,13 @@ const sendAIfetchRequest = async () => {
 }
 
 // needs proper typing for the response
-const sendRequest = async (board: BoardData, aiOpponent: string) => {
-
+const sendRequest = async (board: BoardData, record: Record, aiOpponent: string) => {
+    console.log("record to be sent", record)
     try {
         let response = (await axios.post("http://127.0.0.1:5000/test", {
             test: "fromFront",
             board: board,
+            record: record,
             opponent: aiOpponent,
             turnColor: 2
         }, {
@@ -107,11 +111,12 @@ const sendRequest = async (board: BoardData, aiOpponent: string) => {
 
 
         let newBoard: BoardData = response.data.board
-        console.log("got board?")
-        return newBoard
+        let newRecord: Record = response.data.record
+        console.log("record from back", newRecord)
+        return {boardData: newBoard, record: newRecord}
     } catch (err) {
         console.log("failed to fetch board")
-        return board
+        return {boardData: board, record: record}
     }
 }
 
@@ -130,7 +135,16 @@ const elementConstantsFromBoardElementSize = (boardElementSize: number) => ({
     stoneSize: 0.1 * boardElementSize - 6 // seems to need fixing according to boardSize
 })
 
+const createInitialBoardState = (boardSize: number) => {
+    let board = Array(boardSize)
+    for(let i = 0; i < boardSize; i++) {
+        board[i] = Array(boardSize).fill(Stone.empty)
+    }
+    return board
+}
+
 type BoardData = Array<Array<number>>
+type Record = Array<Array<number>>
 
 const Board = (props: {defaultboardsize: number}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -141,12 +155,7 @@ const Board = (props: {defaultboardsize: number}) => {
 
     const [boardSize, setBoardSize] = useState(props.defaultboardsize)
 
-    let initialBoardState: BoardData = Array(boardSize)
-    for(let i = 0; i < boardSize; i++) {
-        initialBoardState[i] = Array(boardSize).fill(Stone.empty)
-    }
-
-    const [boardState, setBoardState] = useState(initialBoardState)
+    const [boardState, setBoardState] = useState(createInitialBoardState(props.defaultboardsize))
     const [currentTurn, setCurrentTurn] = useState(Stone.black)
 
     const initialElementValues = elementConstantsFromBoardElementSize(getWindowDimensions().height) // assumes a landscape screen
@@ -159,6 +168,9 @@ const Board = (props: {defaultboardsize: number}) => {
     const [boardSizeRadioValue, setBoardSizeRadioValue] = useState(9)
     const [availableAi, setAvailableAi] = useState([])
     const [aiRadioValue, setAiRadioValue] = useState("")
+
+    const [gameRecord, setGameRecord] = useState<Array<Array<number>>>([])
+    const [currentReplayMove, setCurrentReplayMove] = useState(0)
 
     React.useEffect(() => {sendAIfetchRequest().then(aiArray => setAvailableAi(aiArray))}, [])
 
@@ -186,9 +198,18 @@ const Board = (props: {defaultboardsize: number}) => {
 
         bgImg && context.drawImage(bgImg, 0, 0)
         drawGrid(context, boardSize, boardElementSize, intersectionOffset)
-        blackStone && whiteStone && drawStones(boardState, boardSize, context, blackStone, whiteStone, stoneOffset, stoneSize, 
+        console.log(boardState)
+        blackStone && whiteStone && boardState && drawStones(boardState, boardSize, context, blackStone, whiteStone, stoneOffset, stoneSize, 
             boardElementSize, intersectionOffset)
     })
+
+    React.useEffect(() => {
+        setBoardState(() => {
+            let newRecord = Array.from(gameRecord)
+            let newBoard = generateStateFromRecord(newRecord.slice(undefined, currentReplayMove), boardSize)
+            return newBoard
+        })
+    }, [currentReplayMove])
 
     const clickHandler = (x: number, y: number) => {
         if(!canvasRef.current) return
@@ -209,10 +230,16 @@ const Board = (props: {defaultboardsize: number}) => {
 
                             return newBoardState
                         })
+
+                        // quality deepclone
+                        let newGameRecord = JSON.parse(JSON.stringify(gameRecord))
+                        newGameRecord.push([row, col])
                         
-                        aiRadioValue && sendRequest(boardState, aiRadioValue).then(bd => setBoardState(bd))
+                        aiRadioValue && sendRequest(boardState, newGameRecord, aiRadioValue).then(({boardData, record}) => {
+                            setBoardState(boardData)
+                            setGameRecord(record)
+                        })
                     }
-                    
                 }
             }
         }
@@ -228,33 +255,52 @@ const Board = (props: {defaultboardsize: number}) => {
                 clickHandler(clickEvent.clientX, clickEvent.clientY)
             }
             />
-            <div className="new-game-controls">
-                <FormControl component="fieldset">
-                    <RadioGroup row value={`${boardSizeRadioValue}`} onChange={e => {setBoardSizeRadioValue(parseInt(e.target.value))}}>
-                        <FormControlLabel value="9" control={<Radio/>} label="9x9" />
-                        <FormControlLabel value="7" control={<Radio/>} label="7x7" />
-                        <FormControlLabel value="5" control={<Radio/>} label="5x5" />
-                    </RadioGroup>
-                </FormControl>
-                <FormControl component="fieldset">
-                    <RadioGroup row value={`${aiRadioValue}`} onChange={e => {setAiRadioValue(e.target.value)}}>
-                        {availableAi.map(aiName => 
-                            <FormControlLabel value={aiName} control={<Radio/>} label={aiName}/>
-                        )}
-                    </RadioGroup>
-                </FormControl>
-                <Button 
-                    onClick={() => {
-                        setPlayAllowed(true)
-                        setBoardSize(boardSizeRadioValue)
-                        setBoardState(initialBoardState)
-                        console.log(availableAi)
-                    }} variant="contained">Start a new game
-                </Button>
+            <div className="controls">
+                <div className="new-game-controls">
+                    <FormControl component="fieldset">
+                        <RadioGroup row value={`${boardSizeRadioValue}`} onChange={e => {setBoardSizeRadioValue(parseInt(e.target.value))}}>
+                            <FormControlLabel value="9" control={<Radio/>} label="9x9" />
+                            <FormControlLabel value="7" control={<Radio/>} label="7x7" />
+                            <FormControlLabel value="5" control={<Radio/>} label="5x5" />
+                        </RadioGroup>
+                    </FormControl>
+                    <FormControl component="fieldset">
+                        <RadioGroup row value={`${aiRadioValue}`} onChange={e => {setAiRadioValue(e.target.value)}}>
+                            {availableAi.map(aiName => 
+                                <FormControlLabel value={aiName} control={<Radio/>} label={aiName}/>
+                            )}
+                        </RadioGroup>
+                    </FormControl>
+                    <Button 
+                        onClick={() => {
+                            setPlayAllowed(true)
+                            setBoardSize(boardSizeRadioValue)
+                            setBoardState(createInitialBoardState(boardSizeRadioValue))
+                            console.log(availableAi)
+                        }} variant="contained">Start a new game
+                    </Button>
+                </div>
+                <div className="replay-controls">
+                    <div>{`Move: ${currentReplayMove}`}</div>
+                    <div>{gameRecord.map(r => `(${r[0]}, ${r[1]}), `)}</div>
+                    <Button
+                        onClick={() => {
+                            setPlayAllowed(false)
+                            setCurrentReplayMove(gameRecord.length)
+                        }} variant="contained">Review Record
+                    </Button>
+                    <div>
+                        <Button onClick={() => {
+                            setCurrentReplayMove(prevMove => prevMove > 0 ? prevMove - 1 : prevMove)
+                        }} variant="contained">prev</Button>
+                        <Button onClick={() => {
+                            setCurrentReplayMove(prevMove => prevMove < gameRecord.length ? prevMove + 1 : prevMove)
+                        }} variant="contained">next</Button>
+                    </div>
+                </div>
             </div>
         </div>
     )
 }
-
 
 export default Board
